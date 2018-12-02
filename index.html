@@ -83,8 +83,8 @@
 var canvas, gl;
   canvas = document.getElementById("c");
   gl = canvas.getContext("experimental-webgl");
-  cw = 600;
-  ch = 600;
+  cw = window.innerWidth;
+  ch = window.innerHeight;
   canvas.width = cw;
   canvas.height = ch;
   gl.viewport(0, 0, canvas.width, canvas.height);

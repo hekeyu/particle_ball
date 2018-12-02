@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <title>HTML5 WebGL粒子爆炸动画DEMO演示</title>
+  <style>
+  	body{      
+  		margin:0px; 
+  		overflow: hidden;
+  	}
+  	canvas{ 
+  		margin:0px;
+  		position:absolute; 
+  	}
+  	button{
+  		margin:0px;
+  		position:fixed;
+  		background-color: white;
+  	}
+  </style>
+  
+</head>
+
+<body>
+<button id = "button">按钮</button>
+<canvas id="c"></canvas>
+ 
+//片段着色器
+<script id="shader-fs" type="x-shader/x-fragment">
+				#ifdef GL_ES               
+				  precision mediump float;
+				  #endif
+			     varying vec4 v_Color;
+			     varying vec3 v_Normal;
+			     varying vec3 v_Pos;
+			     
+			     uniform sampler2D u_Sampler;
+    		void main(void) {
+    		 vec3 eye = vec3(0.0, 3.0, 2.0);
+    		 
+    		float b = dot(normalize(eye - v_Pos), v_Normal);
+         // gl_FragColor = vec4(b * vec3(1.0, 0.0, 0.0) + (1.0 - b) * v_Color.rgb,1.0);
+          vec4 oo = texture2D(u_Sampler,  gl_PointCoord + vec2(0, 0)) * vec4(0.0, 1.0, 1.0,1.0);  
+    	  
+    	   gl_FragColor = oo;
+    		}
+	</script> 
+//顶点着色器
+<script id="shader-vs" type="x-shader/x-vertex">
+    	attribute vec4 a_Position;
+    	attribute vec4 a_Color;
+    	attribute vec3 a_Normal;
+ 
+    	uniform mat4 u_MvpMatrix;
+    	uniform float u_N;
+    	
+      varying vec4 v_Color;
+      varying vec3 v_Normal;
+      varying vec3 v_Pos;
+   	void main(void) {  
+
+		 v_Normal = a_Normal.xyz;
+		 
+         v_Color = a_Color;
+         u_N;
+         float p =acos(dot(a_Normal, vec3(0, 0, 1.0)));
+         float q =acos(dot(a_Normal, vec3(0, 1.0, 0)));
+         float r =acos(dot(a_Normal, vec3(1.0, 0.0, 0)));
+         gl_Position =u_MvpMatrix * vec4(a_Position.xyz + 0.2 * a_Normal * sin(2.0 * p +2.0 * u_N), a_Position.w);
+         
+        
+        v_Normal = a_Normal;
+         v_Pos = gl_Position.xyz;
+         
+  		  float b =1.0 / float(gl_Position.w) * 30.0; 
+  		  gl_PointSize = b;    
+  	}   
+  </script>
+  <script src = "js/heheyu3Dtest.js"></script>
+  <script src = "js/hekeyuMatrix.js"></script>
+<script>
+
+var canvas, gl;
+  canvas = document.getElementById("c");
+  gl = canvas.getContext("experimental-webgl");
+  cw = 600;
+  ch = 600;
+  canvas.width = cw;
+  canvas.height = ch;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.program = createProgram(gl, "shader-vs", "shader-fs");
+  gl.useProgram(gl.program);
+ 
+
+function initBallBuffer(program){
+  var d = 50;
+  var h = 31;
+  var r = 1;
+  var points = [];
+  var indexes = [];
+  var colors = [];
+  var perD = Math.PI * 2 / d;
+  var perH = Math.PI / h;
+  for(var i = 0; i <d; i++){
+
+   
+  	points.push(0.0, 0.0, r); 
+  	var color = hsva(0, 0, 1, 1);
+  	colors.push(color[0], color[1], color[2]);
+  	for(var j = 1; j <= h; j++){	
+  		 points.push(r * Math.cos(i * perD) * Math.sin(j * perH),
+  		             r * Math.sin(i * perD) * Math.sin(j * perH),
+  		             r * Math.cos(j * perH)); 
+  		 var color = hsva(360 / d * i, 1, 1, 1);
+  		 colors.push(color[0], color[1], color[2]);
+  		 indexes.push(i * (h+1) + j,   ((i + 1) * (h+1) + j - 1) % (d * (h+1)),   i * (h+1) + j - 1);
+  		 indexes.push(i * (h+1) + j,   ((i + 1) * (h+1) + j)%(d * (h+1)),    ((i + 1) * (h+1) + j - 1)%(d * (h+1)));  
+  	}  
+  } 
+  program.verticesBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, program.verticesBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+  
+  program.colorBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, program.colorBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+  
+  program.normalBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, program.normalBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+   
+  program.indexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexes), gl.STATIC_DRAW);
+  program.length = indexes.length;
+}
+
+
+
+function drawBall(program, last, n){
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, program.verticesBuffer);
+  gl.vertexAttribPointer(program.a_Position, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(program.a_Position);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, program.colorBuffer);
+  gl.vertexAttribPointer(program.a_Color, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(program.a_Color);
+  
+  gl.bindBuffer(gl.ARRAY_BUFFER, program.normalBuffer);
+  gl.vertexAttribPointer(program.a_Normal, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(program.a_Normal);
+  
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
+   
+ 
+  
+  	gl.uniformMatrix4fv(program.u_MvpMatrix, false, last);
+      
+    gl.uniform1f(program.u_N, n);
+
+    gl.drawElements(gl.POINTS, program.length, gl.UNSIGNED_SHORT, 0);
+    
+} 
+ 
+initBallBuffer(gl.program);
+
+function generateSprite() {
+//生成精灵贴图
+            var canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+
+            var context = canvas.getContext('2d');
+            var gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(0,255,255,1)');
+            gradient.addColorStop(0.4, 'rgba(0,0,64,1)');
+            gradient.addColorStop(1, 'rgba(0,0,0,1)');
+
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            return canvas;
+        }
+
+function hsva(h, s, v, a){
+		if(s > 1 || v > 1 || a > 1){return;}
+		var th = h % 360;
+		var i = Math.floor(th / 60);
+		var f = th / 60 - i;
+		var m = v * (1 - s);
+		var n = v * (1 - s * f);
+		var k = v * (1 - s * (1 - f));
+		var color = new Array();
+		if(!s > 0 && !s < 0){
+			color.push(v, v, v, a); 
+		} else {
+			var r = new Array(v, n, m, m, k, v);
+			var g = new Array(k, v, v, n, m, m);
+			var b = new Array(m, m, k, v, v, n);
+			color.push(r[i], g[i], b[i], a);
+		}
+		return color;
+}
+var texture = gl.createTexture();
+gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.uniform1i(gl.getUniformLocation(gl.program, "u_Sampler"), 0);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, generateSprite());
+
+            
+ var look = LookAt(4, 0, 0, 0, 0, 0, 0, 1, 0); 
+ var pers = SetPerspective(40, canvas.width / canvas.height, 2, 10);
+ var last = multiply(look, pers);
+ //gl.enable(gl.DEPTH_TEST); 
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.DST_ALPHA, gl.SRC_ALPHA);
+  var n = 0;
+function tick(){
+	n += Math.PI / 60;
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+  last = multiply(rotateY(1), last);
+  drawBall(gl.program, last, n);
+	requestAnimationFrame(tick);
+}
+tick();
+  </script>  
+
+</body>
+</html>
